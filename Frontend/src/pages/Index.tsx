@@ -44,22 +44,38 @@ const Index = () => {
     };
 
     try {
-      const res = await fetch("/predict", {
+      const res = await fetch("http://127.0.0.1:5000/predict", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(payload),
       });
 
       if (!res.ok) throw new Error("API error");
+
       const data = await res.json();
-      setResult({ waterNeeded: data.waterNeeded, confidence: data.confidence });
-    } catch {
-      // Fallback: simulate prediction locally when backend is unavailable
+
+      // 🔥 FIXED mapping from backend
+      const waterNeeded = data.result.includes("Water Needed");
+
+      setResult({
+        waterNeeded,
+        confidence: data.confidence,
+      });
+
+    } catch (err) {
+      console.log("Backend failed, using fallback");
+
+      // fallback logic
       const moisture = payload.soil_moisture;
       const rain = payload.rainfall;
-      const waterNeeded = moisture < 50 && rain < 5;
+
+      const waterNeeded = moisture < 30 || rain < 1;
       const confidence = Math.round(70 + Math.random() * 25);
+
       setResult({ waterNeeded, confidence });
+      setError("Backend not connected - showing simulated result");
     } finally {
       setLoading(false);
     }
@@ -68,6 +84,7 @@ const Index = () => {
   return (
     <div className="min-h-screen px-4 py-10">
       <div className="mx-auto max-w-4xl">
+
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -77,15 +94,17 @@ const Index = () => {
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
             <Sprout size={28} />
           </div>
-          <h1 className="font-display text-3xl font-bold text-foreground">
+
+          <h1 className="text-3xl font-bold">
             AI-Based Smart Farming Simulator
           </h1>
+
           <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
-            This system simulates IoT sensor data and uses AI to predict irrigation needs.
+            Simulates IoT sensor data and predicts irrigation using AI.
           </p>
         </motion.div>
 
-        {/* Stats Cards */}
+        {/* Stats */}
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatsCard icon={Thermometer} label="Avg Temp" value="28°C" />
           <StatsCard icon={Droplets} label="Avg Humidity" value="62%" />
@@ -94,16 +113,17 @@ const Index = () => {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Input Form */}
+
+          {/* Input */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
             className="farm-card"
           >
-            <h2 className="font-display text-lg font-semibold text-foreground mb-4">
+            <h2 className="text-lg font-semibold mb-4">
               Sensor Input
             </h2>
+
             <div className="grid grid-cols-2 gap-3">
               {inputFields.map((field) => (
                 <div key={field.key}>
@@ -120,33 +140,42 @@ const Index = () => {
                 </div>
               ))}
             </div>
+
             <button
               onClick={handlePredict}
               disabled={loading}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-display text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-60"
+              className="mt-5 w-full bg-primary text-white py-3 rounded-lg flex justify-center items-center gap-2"
             >
               {loading ? (
                 <>
-                  <Loader2 size={18} className="animate-spin" />
-                  Predicting…
+                  <Loader2 className="animate-spin" size={18} />
+                  Predicting...
                 </>
               ) : (
                 "Predict Irrigation"
               )}
             </button>
 
-            {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
-            {result && <PredictionResult waterNeeded={result.waterNeeded} confidence={result.confidence} />}
+            {error && (
+              <p className="mt-3 text-sm text-red-500">{error}</p>
+            )}
+
+            {result && (
+              <PredictionResult
+                waterNeeded={result.waterNeeded}
+                confidence={result.confidence}
+              />
+            )}
           </motion.div>
 
           {/* Chart */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
           >
             <IrrigationChart />
           </motion.div>
+
         </div>
       </div>
     </div>
